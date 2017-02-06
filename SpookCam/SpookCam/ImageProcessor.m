@@ -118,9 +118,29 @@
         }
     }
     
+    // Convert the image to black and white
+    for (NSUInteger j = 0; j < inputHeight; j++) {
+        for (NSUInteger i = 0; i < inputWidth; i++) {
+            UInt32 * currentPixel = inputPixels + (j * inputWidth) + i;
+            UInt32 color = *currentPixel;
+            
+            // Average of RGB = greyscale
+            UInt32 averageColor = (R(color) + G(color) + B(color)) / 3.0;
+            
+            *currentPixel = RGBAMake(averageColor, averageColor, averageColor, A(color));
+        }
+    }
+    
     // Create a new UIImage
     CGImageRef newCGImage = CGBitmapContextCreateImage(context);
     UIImage * processedImage = [UIImage imageWithCGImage:newCGImage];
+    
+    // Cleanup!
+    CGColorSpaceRelease(colorSpace);
+    CGContextRelease(context);
+    CGContextRelease(ghostContext);
+    free(inputPixels);
+    free(ghostPixels);
     
     return processedImage;
 }
