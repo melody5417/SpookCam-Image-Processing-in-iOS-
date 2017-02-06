@@ -69,7 +69,60 @@
   CGContextDrawImage(context, CGRectMake(0, 0, inputWidth, inputHeight), inputCGImage);
   
  
-  return inputImage;
+    // 例子2
+    // 创建一个幽灵的CGImageRef对象
+    UIImage * ghostImage = [UIImage imageNamed:@"ghost"];
+    CGImageRef ghostCGImage = [ghostImage CGImage];
+    
+    // 确定幽灵图像放在原图的什么位置 把幽灵的图像宽度缩小25%，并把它的原点设定在点ghostOrigin
+    CGFloat ghostImageAspectRatio = ghostImage.size.width / ghostImage.size.height;
+    NSInteger targetGhostWidth = inputWidth * 0.25;
+    CGSize ghostSize = CGSizeMake(targetGhostWidth, targetGhostWidth / ghostImageAspectRatio);
+    CGPoint ghostOrigin = CGPointMake(inputWidth * 0.5, inputHeight * 0.2);
+    
+    // 创建一张缩小的幽灵图像的缓存图
+    NSUInteger ghostBytesPerRow = bytesPerPixel * ghostSize.width;
+    UInt32 * ghostPixels = (UInt32 *)calloc(ghostSize.width * ghostSize.height, sizeof(UInt32));
+    
+    CGContextRef ghostContext = CGBitmapContextCreate(ghostPixels, ghostSize.width, ghostSize.height,
+                                                      bitsPerComponent, ghostBytesPerRow, colorSpace,
+                                                      kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGContextDrawImage(ghostContext, CGRectMake(0, 0, ghostSize.width, ghostSize.height),ghostCGImage);
+    
+    // 合并 遍历需要修改的pixel 即 ghost 所在部分的pixel
+    // NOTE:虽然你使用的是2维数据存储图像，但在内存他它实际上是一维的。
+    NSUInteger offsetPixelCountForInput = ghostOrigin.y * inputWidth + ghostOrigin.x;
+    for (NSUInteger j = 0; j < ghostSize.height; j++) {
+        for (NSUInteger i = 0; i < ghostSize.width; i++) {
+            UInt32 * inputPixel = inputPixels + j * inputWidth + i + offsetPixelCountForInput;
+            UInt32 inputColor = *inputPixel;
+            
+            UInt32 * ghostPixel = ghostPixels + j * (int)ghostSize.width + i;
+            UInt32 ghostColor = *ghostPixel;
+            
+            // Blend the ghost with 50% alpha
+            // 对带有透明度的颜色进行混合公式
+            // NewColor = TopColor * TopColor.Alpha + BottomColor * (1 - TopColor.Alpha)
+            CGFloat ghostAlpha = 0.5f * (A(ghostColor) / 255.0);
+            UInt32 newR = R(inputColor) * (1 - ghostAlpha) + R(ghostColor) * ghostAlpha;
+            UInt32 newG = G(inputColor) * (1 - ghostAlpha) + G(ghostColor) * ghostAlpha;
+            UInt32 newB = B(inputColor) * (1 - ghostAlpha) + B(ghostColor) * ghostAlpha;
+            
+            // Clamp, not really useful here :p
+            // clamping部分将每个颜色的值范围进行限定到0到255之间，虽然一般情况下值不会越界。但是，大多数情况下需要进行这种限定防止发生意外的错误输出。
+            newR = MAX(0,MIN(255, newR));
+            newG = MAX(0,MIN(255, newG));
+            newB = MAX(0,MIN(255, newB));
+            
+            *inputPixel = RGBAMake(newR, newG, newB,     A(inputColor));
+        }
+    }
+    
+    // Create a new UIImage
+    CGImageRef newCGImage = CGBitmapContextCreateImage(context);
+    UIImage * processedImage = [UIImage imageWithCGImage:newCGImage];
+    
+    return processedImage;
 }
 
 
