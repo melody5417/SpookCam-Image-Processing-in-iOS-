@@ -28,7 +28,11 @@
 #pragma mark - Public
 
 - (void)processImage:(UIImage*)inputImage {
-  UIImage * outputImage = [self processUsingPixels:inputImage];
+    // Demo: using Pixels
+     UIImage * outputImage = [self processUsingPixels:inputImage];
+    
+    // Demo: using CoreGraphics
+//    UIImage * outputImage = [self processUsingCoreGraphics:inputImage];
   
   if ([self.delegate respondsToSelector:
        @selector(imageProcessorFinishedProcessingWithImage:)]) {
@@ -145,5 +149,59 @@
     return processedImage;
 }
 
+- (UIImage *)processUsingCoreGraphics:(UIImage*)input {
+    CGRect imageRect = {CGPointZero,input.size};
+    NSInteger inputWidth = CGRectGetWidth(imageRect);
+    NSInteger inputHeight = CGRectGetHeight(imageRect);
+    
+    // 1) Calculate the location of Ghosty
+    UIImage * ghostImage = [UIImage imageNamed:@"ghost.png"];
+    CGFloat ghostImageAspectRatio = ghostImage.size.width / ghostImage.size.height;
+    
+    NSInteger targetGhostWidth = inputWidth * 0.25;
+    CGSize ghostSize = CGSizeMake(targetGhostWidth, targetGhostWidth / ghostImageAspectRatio);
+    CGPoint ghostOrigin = CGPointMake(inputWidth * 0.5, inputHeight * 0.2);
+    
+    CGRect ghostRect = {ghostOrigin, ghostSize};
+    
+    // 2) Draw your image into the context.
+    // 这里创建了一个“离屏”（“off-screen”）的context，CGContext的坐标系以左下角为原点，相反的UIImage使用左上角为原点。
+    UIGraphicsBeginImageContext(input.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    
+    CGAffineTransform flip = CGAffineTransformMakeScale(1.0, -1.0);
+    CGAffineTransform flipThenShift = CGAffineTransformTranslate(flip,0,-inputHeight);
+    CGContextConcatCTM(context, flipThenShift);
+    
+    CGContextDrawImage(context, imageRect, [input CGImage]);
+    
+    CGContextSetBlendMode(context, kCGBlendModeSourceAtop);
+    CGContextSetAlpha(context,0.5);
+    CGRect transformedGhostRect = CGRectApplyAffineTransform(ghostRect, flipThenShift);
+    CGContextDrawImage(context, transformedGhostRect, [ghostImage CGImage]);
+    
+    // 3) Retrieve your processed image
+    // get no responsible to release
+    UIImage * imageWithGhost = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    // 4) Draw your image into a grayscale context
+    // create need to release manually
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceGray();
+    context = CGBitmapContextCreate(nil, inputWidth, inputHeight,
+                                    8, 0, colorSpace, (CGBitmapInfo)kCGImageAlphaNone);
+    
+    CGContextDrawImage(context, imageRect, [imageWithGhost CGImage]);
+    
+    CGImageRef imageRef = CGBitmapContextCreateImage(context);
+    UIImage * finalImage = [UIImage imageWithCGImage:imageRef];
+    
+    // 5) Cleanup
+    CGColorSpaceRelease(colorSpace);
+    CGContextRelease(context);
+    CFRelease(imageRef);
+    
+    return finalImage;
+}
 
 @end
