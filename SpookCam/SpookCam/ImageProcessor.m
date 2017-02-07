@@ -78,7 +78,7 @@
  
     // 例子2
     // 创建一个幽灵的CGImageRef对象
-    UIImage * ghostImage = [UIImage imageNamed:@"ghost"];
+    UIImage * ghostImage = [UIImage imageNamed:@"ghost.png"];
     CGImageRef ghostCGImage = [ghostImage CGImage];
     
     // 确定幽灵图像放在原图的什么位置 把幽灵的图像宽度缩小25%，并把它的原点设定在点ghostOrigin
@@ -100,7 +100,7 @@
     
     // 合并 遍历需要修改的pixel 即 ghost 所在部分的pixel
     // NOTE:虽然你使用的是2维数据存储图像，但在内存他它实际上是一维的。
-    NSUInteger offsetPixelCountForInput = ghostOrigin.y * inputWidth + ghostOrigin.x;
+    NSUInteger offsetPixelCountForInput = (int)ghostOrigin.y * inputWidth + ghostOrigin.x;
     for (NSUInteger j = 0; j < ghostSize.height; j++) {
         for (NSUInteger i = 0; i < ghostSize.width; i++) {
             UInt32 * inputPixel = inputPixels + j * inputWidth + i + offsetPixelCountForInput;
@@ -123,7 +123,7 @@
             newG = MAX(0,MIN(255, newG));
             newB = MAX(0,MIN(255, newB));
             
-            *inputPixel = RGBAMake(newR, newG, newB,     A(inputColor));
+            *inputPixel = RGBAMake(newR, newG, newB, A(inputColor));
         }
     }
     
